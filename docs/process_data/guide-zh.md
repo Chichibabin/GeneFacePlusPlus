@@ -25,7 +25,10 @@ export VIDEO_ID=May
 export CUDA_VISIBLE_DEVICES=0
 mkdir -p data/processed/videos/${VIDEO_ID}/gt_imgs
 ffmpeg -i data/raw/videos/${VIDEO_ID}.mp4 -vf fps=25,scale=w=512:h=512 -qmin 1 -q:v 1 -start_number 0 data/processed/videos/${VIDEO_ID}/gt_imgs/%08d.jpg
-python data_gen/utils/process_video/extract_segment_imgs.py --ds_name=nerf --vid_dir=data/raw/videos/${VIDEO_ID}.mp4 # extract image, segmap, and background
+
+# extract image, segmap, and background,默认使用多进程处理segmenter（我们本地使用的是基于CPU的mediapipe）。而启用OpenGL的mediapipe暂时无法多进程加速。你可以使用--force_single_process来避免这个问题，但处理速度可能会有点慢。
+
+python data_gen/utils/process_video/extract_segment_imgs.py --ds_name=nerf --vid_dir=data/raw/videos/${VIDEO_ID}.mp4 --force_single_process 
 ```
 
 # 步骤3. 提取lm2d_mediapipe

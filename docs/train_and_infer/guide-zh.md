@@ -9,10 +9,10 @@
 ```
 # 训练 Head NeRF 模型
 # 模型与tensorboard会被保存在 `checkpoints/<exp_name>`
-CUDA_VISIBLE_DEVICES=0 python tasks/run.py --config=egs/datasets/May/lm3d_radnerf_sr.yaml --exp_name=motion2video_nerf/may_head --reset
+CUDA_VISIBLE_DEVICES=0 python tasks/run.py --config=egs/datasets/LaoJiang/lm3d_radnerf_sr.yaml --exp_name=motion2video_nerf/laojiang_head --reset
 
 # 训练 Torso NeRF 模型
-CUDA_VISIBLE_DEVICES=0 python tasks/run.py --config=egs/datasets/May/lm3d_radnerf_torso_sr.yaml --exp_name=motion2video_nerf/may_torso --hparams=head_model_dir=checkpoints/motion2video_nerf/may_head --reset
+CUDA_VISIBLE_DEVICES=0 python tasks/run.py --config=egs/datasets/LaoJiang/lm3d_radnerf_torso_sr.yaml --exp_name=motion2video_nerf/laojiang_torso --hparams=head_model_dir=checkpoints/motion2video_nerf/laojiang_head --reset
 ```
 对于`May`，你也可以从[Google Drive](https://drive.google.com/drive/folders/1SwZ7uRa5ESzzq_Cd21-Lk5heAZxa9oZO?usp=sharing) 或 [BaiduYun Disk](https://pan.baidu.com/s/1zR914cBQcGOAl4o4XInBNw?pwd=e1a3)(密码 e1a3) 下载预训练的模型, 并放置模型在 `checkpoints/motion2video_nerf`里。
 

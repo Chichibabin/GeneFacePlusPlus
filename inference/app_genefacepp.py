@@ -6,9 +6,36 @@ from inference.genefacepp_infer import GeneFace2Infer
 from utils.commons.hparams import hparams
 import random
 import time
+import azure.cognitiveservices.speech as speechsdk
+
+def text_to_speech(text,voice_name ="zh-CN-XiaoxiaoNeural"):
+    start = time.time()
+    filename="data/raw/val_wavs/input_audio.wav"
+    # 替换以下字符串
+    subscription_key = "0e7b4c67d785478396023b7c5ac60b9b"
+    service_region = "eastus"
+
+    speech_config = speechsdk.SpeechConfig(subscription=subscription_key, region=service_region)
+    speech_config.speech_synthesis_voice_name = voice_name  # 指定中文声音
+
+    audio_config = speechsdk.audio.AudioOutputConfig(filename=filename)
+
+    speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+
+    result = speech_synthesizer.speak_text_async(text).get()
+
+    if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+        print("Speech synthesized to [{}] for text [{}], cost [{}] seconds".format(filename, text, time.time() - start))
+    elif result.reason == speechsdk.ResultReason.Canceled:
+        cancellation_details = result.cancellation_details
+        print("Speech synthesis canceled: {}".format(cancellation_details.reason))
+        if cancellation_details.reason == speechsdk.CancellationReason.Error:
+            print("Error details: {}".format(cancellation_details.error_details))
+    return filename
 
 class Inferer(GeneFace2Infer):
     def infer_once_args(self, *args, **kargs):
+        start = time.time()
         assert len(kargs) == 0
         keys = [
             'drv_audio_name',
@@ -89,7 +116,7 @@ class Inferer(GeneFace2Infer):
             info_gr = gr.update(visible=False, value=info)
             
         if out_name is not None and len(out_name) > 0 and os.path.exists(out_name): # good output
-            print(f"Succefully generated in {out_name}")
+            print(f"Succefully generated in {out_name}, cost {time.time() - start:.2f} seconds")
             video_gr = gr.update(visible=True, value=out_name)
         else:
             print(f"Failed to generate")
@@ -144,9 +171,8 @@ def genefacepp_demo(
         gr.Markdown("\
             <div align='center'> <h2> GeneFace++: Generalized and Stable Real-Time Audio-Driven 3D Talking Face Generation </span> </h2> \
             <a style='font-size:18px;color: #a0a0a0' href='https://arxiv.org/pdf/2305.00787.pdf'>Arxiv</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \
-            <a style='font-size:18px;color: #a0a0a0' href='https://baidu.com'>Homepage</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \
-            <a style='font-size:18px;color: #a0a0a0' href='https://baidu.com'> Github </div>")
-        
+            <a style='font-size:18px;color: #a0a0a0' href='https://genefaceplusplus.github.io/'>Homepage</a>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \
+            <a style='font-size:18px;color: #a0a0a0' href='https://github.com/yerfor/GeneFacePlusPlus'> Github </div>")
         sources = None
         with gr.Row():
             with gr.Column(variant='panel'):
@@ -154,13 +180,18 @@ def genefacepp_demo(
                     with gr.TabItem('Upload audio'):
                         with gr.Column(variant='panel'):
                             drv_audio_name = gr.Audio(label="Input audio (required)", sources=sources, type="filepath", value='data/raw/val_wavs/MacronSpeech.wav')
-                             
+                            drv_text = gr.Textbox(label="Input text", placeholder="Please input the text to be spoken", value="Hello, I am GeneFace++")
+                            voice_name_dropdown = gr.Dropdown(label="Voice Name", choices=["zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural", "en-GB-SoniaNeural", "en-GB-RyanNeural"], value="zh-CN-XiaoxiaoNeural")
+                            drv_text_submit = gr.Button('Submit', elem_id="drv_text_submit", variant='primary')
+                with gr.Tabs(elem_id="genearted_video"):
+                        info_box = gr.Textbox(label="Error", interactive=False, visible=False)
+                        gen_video = gr.Video(label="Generated video", format="mp4", visible=True)      
+                submit = gr.Button('Generate', elem_id="generate", variant='primary')
+       
             with gr.Column(variant='panel'): 
                 with gr.Tabs(elem_id="checkbox"):
                     with gr.TabItem('General Settings'):
-                        gr.Markdown("need help? please visit our [best practice page](https://baidu.com) for more detials")
                         with gr.Column(variant='panel'):
-
                             blink_mode = gr.Radio(['none', 'period'], value='period', label='blink mode', info="whether to blink periodly")       
                             lle_percent = gr.Slider(minimum=0.0, maximum=1.0, step=0.025, label="lle_percent",  value=0.0, info='higher-> drag pred.landmark closer to the training video\'s landmark set',)
                             temperature = gr.Slider(minimum=0.0, maximum=1.0, step=0.025, label="temperature",  value=0.0, info='audio to secc temperature',)
@@ -168,18 +199,11 @@ def genefacepp_demo(
                             raymarching_end_threshold = gr.Slider(minimum=0.0, maximum=0.1, step=0.0025, label="ray marching end-threshold",  value=0.01, info='increase it to improve inference speed',)
                             fp16 = gr.Checkbox(label="Whether to utilize fp16 to speed up inference")
                             low_memory_usage = gr.Checkbox(label="Low Memory Usage Mode: save memory at the expense of lower inference speed. Useful when running a low audio (minutes-long).", value=False)
-                            
-                            submit = gr.Button('Generate', elem_id="generate", variant='primary')
-                        
-                    with gr.Tabs(elem_id="genearted_video"):
-                        info_box = gr.Textbox(label="Error", interactive=False, visible=False)
-                        gen_video = gr.Video(label="Generated video", format="mp4", visible=True)
             with gr.Column(variant='panel'): 
                 with gr.Tabs(elem_id="checkbox"):
                     with gr.TabItem('Checkpoints'):
                         with gr.Column(variant='panel'):
                             ckpt_info_box = gr.Textbox(value="Please select \"ckpt\" under the checkpoint folder ", interactive=False, visible=True, show_label=False)
-                            
                             audio2secc_dir = gr.FileExplorer(glob="checkpoints/**/*.ckpt", value=audio2secc_dir, file_count='single', label='audio2secc model ckpt path or directory')
                             torso_model_dir = gr.FileExplorer(glob="checkpoints/**/*.ckpt", value=torso_model_dir, file_count='single', label='torso model ckpt path or directory')
                             postnet_dir = gr.FileExplorer(glob="checkpoints/**/*.ckpt", value=postnet_dir, file_count='single', label='(optional) pose net model ckpt path or directory')
@@ -188,6 +212,7 @@ def genefacepp_demo(
         fn = infer_obj.infer_once_args
         if warpfn:
             fn = warpfn(fn)
+        
         submit.click(
                     fn=fn, 
                     inputs=[ 
@@ -207,6 +232,17 @@ def genefacepp_demo(
                     outputs=[
                         gen_video,
                         info_box,
+                    ],
+                    )
+        
+        drv_text_submit.click(
+                    fn=text_to_speech, 
+                    inputs=[ 
+                        drv_text,
+                        voice_name_dropdown,
+                    ], 
+                    outputs=[
+                        drv_audio_name,
                     ],
                     )
 
