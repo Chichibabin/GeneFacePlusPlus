@@ -77,11 +77,13 @@ def vis_cano_lm3d_to_imgs(cano_lm3d, hw=512):
         frame_lst.append(img)
     return frame_lst
 
-def inject_blink_to_lm68(lm68, opened_eye_area_percent=0.6, closed_eye_area_percent=0.15):
+# TODO: 修复眨眼时脸型会突然瘦脸，且眨眼结束后眼睛无法完全睁开的问题
+def inject_blink_to_lm68(lm68, _eye_area_percent,  opened_eye_area_percent=0.6, closed_eye_area_percent=0.15):
     # [T, 68, 2]
     # lm68[:,36:48] = lm68[0:1,36:48].repeat([len(lm68), 1, 1])
     opened_eye_lm68 = copy.deepcopy(lm68)
-    eye_area_percent = 0.6 * torch.ones([len(lm68), 1], dtype=opened_eye_lm68.dtype, device=opened_eye_lm68.device)
+    eye_area_percent = copy.deepcopy(_eye_area_percent)
+    # eye_area_percent = 0.6 * torch.ones([len(lm68), 1], dtype=opened_eye_lm68.dtype, device=opened_eye_lm68.device)
 
     eye_open_scale = (opened_eye_lm68[:, 41, 1] - opened_eye_lm68[:, 37, 1]) + (opened_eye_lm68[:, 40, 1] - opened_eye_lm68[:, 38, 1]) + (opened_eye_lm68[:, 47, 1] - opened_eye_lm68[:, 43, 1]) + (opened_eye_lm68[:, 46, 1] - opened_eye_lm68[:, 44, 1])
     eye_open_scale = eye_open_scale.abs()
@@ -400,7 +402,7 @@ class GeneFace2Infer:
         eye_area_percent = self.opened_eye_area_percent * torch.ones([len(cano_lm3d), 1], dtype=cano_lm3d.dtype, device=cano_lm3d.device)
         
         if inp['blink_mode'] == 'period':
-            cano_lm3d, eye_area_percent = inject_blink_to_lm68(cano_lm3d, self.opened_eye_area_percent, self.closed_eye_area_percent)
+            cano_lm3d, eye_area_percent = inject_blink_to_lm68(cano_lm3d, eye_area_percent, self.opened_eye_area_percent, self.closed_eye_area_percent)
             print("Injected blink to idexp_lm3d by directly editting.")
         batch['eye_area_percent'] = eye_area_percent
         idexp_lm3d_normalized = ((cano_lm3d - self.face3d_helper.key_mean_shape[index_lm68_from_lm478].unsqueeze(0)) * 10 - idexp_lm3d_mean) / idexp_lm3d_std
