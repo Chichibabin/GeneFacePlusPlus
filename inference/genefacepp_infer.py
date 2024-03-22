@@ -77,8 +77,7 @@ def vis_cano_lm3d_to_imgs(cano_lm3d, hw=512):
         frame_lst.append(img)
     return frame_lst
 
-# TODO: 修复眨眼时脸型会突然瘦脸
-def inject_blink_to_lm68(lm68, _eye_area_percent,  opened_eye_area_percent=0.6, closed_eye_area_percent=0.15):
+def inject_blink_to_lm68(lm68, opened_eye_area_percent=0.6, closed_eye_area_percent=0.15):
     # [T, 68, 2]
     # lm68[:,36:48] = lm68[0:1,36:48].repeat([len(lm68), 1, 1])
     opened_eye_lm68 = copy.deepcopy(lm68)
@@ -120,6 +119,74 @@ def inject_blink_to_lm68(lm68, _eye_area_percent,  opened_eye_area_percent=0.6, 
                 lm68[idx, 36:48] = lm68[idx, 36:48] * (1-blink_factor) + closed_eye_lm68[idx, 36:48] * blink_factor
                 eye_area_percent[idx] = opened_eye_area_percent * (1-blink_factor) + closed_eye_area_percent * blink_factor
     return lm68, eye_area_percent
+
+# TODO: 检测音频停顿
+def detect_silence(audio, sr, frame_length=2048, hop_length=512, silence_threshold=0.01):
+    """
+    Detects silence in an audio signal.
+
+    :param audio: The audio signal.
+    :param sr: The sampling rate of the audio.
+    :param frame_length: The length of each frame for analysis.
+    :param hop_length: The number of samples to shift between frames.
+    :param silence_threshold: The threshold for considering a frame as silent.
+    :return: A list of tuples containing the start and end times of silent segments.
+    """
+    # Compute the short-time energy of the audio signal
+    energy = librosa.feature.rms(audio, frame_length=frame_length, hop_length=hop_length)[0]
+
+    # Normalize the energy
+    energy = (energy - np.min(energy)) / (np.max(energy) - np.min(energy))
+
+    # Find frames that are below the silence threshold
+    silent_frames = np.where(energy < silence_threshold)[0]
+
+    # Group consecutive frames and convert to time
+    silent_segments = []
+    for group in np.split(silent_frames, np.where(np.diff(silent_frames) != 1)[0]+1):
+        start_time = librosa.frames_to_time(group[0], sr=sr, hop_length=hop_length)
+        end_time = librosa.frames_to_time(group[-1], sr=sr, hop_length=hop_length)
+        silent_segments.append((start_time, end_time))
+
+    return silent_segments
+
+# TODO: 修复插入闭嘴帧bug
+def inject_mouth_close_to_lm68(lm68, silent_segments, audio_frame_rate = 16000, video_frame_rate = 25):
+    """
+    Injects mouth-closing frames into silent segments of an audio.
+    
+    :param lm68: Landmarks for each frame, shape [T, 68, 2].
+    :param silent_segments: List of tuples containing start and end times of silent segments.
+    :param audio_frame_rate: Frame rate of the audio.
+    :param video_frame_rate: Frame rate of the video.
+    :return: Modified landmarks with mouth-closing frames injected.
+    """
+    
+    # Calculate the frame rate ratio between audio and video
+    frame_rate_ratio = audio_frame_rate / video_frame_rate
+    
+    # Convert silent segment times to frame indices
+    silent_frames = []
+    for start_time, end_time in silent_segments:
+        start_frame = int(start_time * frame_rate_ratio)
+        end_frame = int(end_time * frame_rate_ratio)
+        for frame in range(start_frame, end_frame):
+            if frame < len(lm68):
+                silent_frames.append(frame)
+                
+    # Close the mouth in silent frames
+    for frame in silent_frames:
+        # Upper lip inner side
+        lm68[frame, [61, 62, 63], 1] = (lm68[frame, [61, 62, 63], 1] + lm68[frame, [67, 66, 65], 1]) / 2
+        # Lower lip inner side
+        lm68[frame, [67, 66, 65], 1] = lm68[frame, [61, 62, 63], 1]
+        # Upper lip outer side
+        lm68[frame, [50, 51, 52], 1] = (lm68[frame, [50, 51, 52], 1] + lm68[frame, [58, 57, 56], 1]) / 2
+        # Lower lip outer side
+        lm68[frame, [58, 57, 56], 1] = lm68[frame, [50, 51, 52], 1]
+    
+    return lm68
+
 
 
 class GeneFace2Infer:
@@ -408,8 +475,16 @@ class GeneFace2Infer:
         eye_area_percent = self.opened_eye_area_percent * torch.ones([len(cano_lm3d), 1], dtype=cano_lm3d.dtype, device=cano_lm3d.device)
         
         if inp['blink_mode'] == 'period':
-            cano_lm3d, eye_area_percent = inject_blink_to_lm68(cano_lm3d, eye_area_percent, self.opened_eye_area_percent, self.closed_eye_area_percent)
+            cano_lm3d, eye_area_percent = inject_blink_to_lm68(cano_lm3d, self.opened_eye_area_percent, self.closed_eye_area_percent)
             print("Injected blink to idexp_lm3d by directly editting.")
+        
+        if inp['close_mouth_mode'] == 'silent':
+            audio, sr = librosa.load(inp['drv_audio_name'][:-4] + '_16k.wav', sr=None)
+            silent_segments = detect_silence(audio, sr)
+            print(f"Detected {len(silent_segments)} silent segments.")
+            print(silent_segments)
+            # cano_lm3d = inject_mouth_close_to_lm68(cano_lm3d, silent_segments[1:])
+            # print("Injected mouth close to idexp_lm3d by directly editting.")
         batch['eye_area_percent'] = eye_area_percent
         idexp_lm3d_normalized = ((cano_lm3d - self.face3d_helper.key_mean_shape[index_lm68_from_lm478].unsqueeze(0)) * 10 - idexp_lm3d_mean) / idexp_lm3d_std
         idexp_lm3d_normalized = torch.clamp(idexp_lm3d_normalized, min=lower, max=upper)
@@ -575,7 +650,7 @@ if __name__ == '__main__':
     parser.add_argument("--fast", action='store_true') 
     parser.add_argument("--out_name", default='tmp.mp4') 
     parser.add_argument("--low_memory_usage", action='store_true', help='write img to video upon generated, leads to slower fps, but use less memory')
-
+    parser.add_argument("--close_mouth_mode", default='silent')# silent | none
 
     args = parser.parse_args()
 
@@ -594,6 +669,7 @@ if __name__ == '__main__':
             'out_name': args.out_name,
             'raymarching_end_threshold': args.raymarching_end_threshold,
             'low_memory_usage': args.low_memory_usage,
+            'close_mouth_mode':args.close_mouth_mode,
             }
     if args.fast:
         inp['raymarching_end_threshold'] = 0.05
