@@ -23,4 +23,4 @@ def text_to_speech(text,voice_name ="zh-CN-XiaoxiaoNeural",  filename="input_aud
             print("Error details: {}".format(cancellation_details.error_details))
 
 # 示例用法
-text_to_speech("您好！我是海纳AI打造的数字人面试官。作为一名高效、公正的虚拟面试官，我致力于为求职者提供一个舒适、无压力的面试环境，同时也帮助企业精准、快速地筛选合适的人才。")
+text_to_speech("您好！这是一条数字人嘴部闭合测试语音。。。。。。")

@@ -77,13 +77,13 @@ def vis_cano_lm3d_to_imgs(cano_lm3d, hw=512):
         frame_lst.append(img)
     return frame_lst
 
-# TODO: 修复眨眼时脸型会突然瘦脸，且眨眼结束后眼睛无法完全睁开的问题
+# TODO: 修复眨眼时脸型会突然瘦脸
 def inject_blink_to_lm68(lm68, _eye_area_percent,  opened_eye_area_percent=0.6, closed_eye_area_percent=0.15):
     # [T, 68, 2]
     # lm68[:,36:48] = lm68[0:1,36:48].repeat([len(lm68), 1, 1])
     opened_eye_lm68 = copy.deepcopy(lm68)
-    eye_area_percent = copy.deepcopy(_eye_area_percent)
-    # eye_area_percent = 0.6 * torch.ones([len(lm68), 1], dtype=opened_eye_lm68.dtype, device=opened_eye_lm68.device)
+    # eye_area_percent = copy.deepcopy(_eye_area_percent)
+    eye_area_percent = 0.6 * torch.ones([len(lm68), 1], dtype=opened_eye_lm68.dtype, device=opened_eye_lm68.device)
 
     eye_open_scale = (opened_eye_lm68[:, 41, 1] - opened_eye_lm68[:, 37, 1]) + (opened_eye_lm68[:, 40, 1] - opened_eye_lm68[:, 38, 1]) + (opened_eye_lm68[:, 47, 1] - opened_eye_lm68[:, 43, 1]) + (opened_eye_lm68[:, 46, 1] - opened_eye_lm68[:, 44, 1])
     eye_open_scale = eye_open_scale.abs()
@@ -104,6 +104,12 @@ def inject_blink_to_lm68(lm68, _eye_area_percent,  opened_eye_area_percent=0.6, 
     # blink_factor_lst = np.array([0.4, 0.7, 0.8, 1.0, 0.8, 0.6, 0.4]) # * 0.9
     blink_factor_lst = np.array([0.1, 0.5, 0.7, 1.0, 0.7, 0.5, 0.1]) # * 0.9
     dur = len(blink_factor_lst)
+    
+    for i in range(T):
+        blink_factor = blink_factor_lst[0]
+        lm68[i, 36:48] = lm68[i, 36:48] * (1-blink_factor) + closed_eye_lm68[i, 36:48] * blink_factor
+        eye_area_percent[i] = opened_eye_area_percent * (1-blink_factor) + closed_eye_area_percent * blink_factor
+
     for i in range(T):
         if (i + 25) % period == 0:
             for j in range(dur):
@@ -592,3 +598,5 @@ if __name__ == '__main__':
     if args.fast:
         inp['raymarching_end_threshold'] = 0.05
     GeneFace2Infer.example_run(inp)
+    torch.cuda.empty_cache()  # If you're using PyTorch
+    os._exit(0)
