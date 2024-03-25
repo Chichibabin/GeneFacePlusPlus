@@ -136,14 +136,21 @@ def detect_silence(audio, sr, frame_length=2048, hop_length=512, silence_thresho
     energy = librosa.feature.rms(audio, frame_length=frame_length, hop_length=hop_length)[0]
 
     # Normalize the energy
-    energy = (energy - np.min(energy)) / (np.max(energy) - np.min(energy))
+    if np.max(energy) == np.min(energy):
+        # All elements in energy are the same
+        energy = np.zeros_like(energy)  # or np.ones_like(energy)
+    else:
+        energy = (energy - np.min(energy)) / (np.max(energy) - np.min(energy))
 
     # Find frames that are below the silence threshold
     silent_frames = np.where(energy < silence_threshold)[0]
+    print("Silent frames:", silent_frames)
 
     # Group consecutive frames and convert to time
     silent_segments = []
     for group in np.split(silent_frames, np.where(np.diff(silent_frames) != 1)[0]+1):
+        if group.size == 0:  # Check if group is empty
+            continue
         start_time = librosa.frames_to_time(group[0], sr=sr, hop_length=hop_length)
         end_time = librosa.frames_to_time(group[-1], sr=sr, hop_length=hop_length)
         silent_segments.append((start_time, end_time))
@@ -162,28 +169,25 @@ def inject_mouth_close_to_lm68(lm68, silent_segments, audio_frame_rate = 16000, 
     :return: Modified landmarks with mouth-closing frames injected.
     """
     
-    # Calculate the frame rate ratio between audio and video
-    frame_rate_ratio = audio_frame_rate / video_frame_rate
-    
     # Convert silent segment times to frame indices
     silent_frames = []
     for start_time, end_time in silent_segments:
-        start_frame = int(start_time * frame_rate_ratio)
-        end_frame = int(end_time * frame_rate_ratio)
+        start_frame = int(start_time * video_frame_rate)
+        end_frame = int(end_time * video_frame_rate)
         for frame in range(start_frame, end_frame):
             if frame < len(lm68):
                 silent_frames.append(frame)
                 
     # Close the mouth in silent frames
     for frame in silent_frames:
+        # Upper lip outer side
+        lm68[frame, [50, 51, 52], 1] = lm68[frame, [50, 51, 52], 1] - lm68[frame, [61, 62, 63], 1]/2 + lm68[frame, [67, 66, 65], 1]/2
+        # Lower lip outer side
+        lm68[frame, [58, 57, 56], 1] = lm68[frame, [58, 57, 56], 1] - lm68[frame, [67, 66, 65], 1]/2 + lm68[frame, [61, 62, 63], 1]/2
         # Upper lip inner side
         lm68[frame, [61, 62, 63], 1] = (lm68[frame, [61, 62, 63], 1] + lm68[frame, [67, 66, 65], 1]) / 2
         # Lower lip inner side
         lm68[frame, [67, 66, 65], 1] = lm68[frame, [61, 62, 63], 1]
-        # Upper lip outer side
-        lm68[frame, [50, 51, 52], 1] = (lm68[frame, [50, 51, 52], 1] + lm68[frame, [58, 57, 56], 1]) / 2
-        # Lower lip outer side
-        lm68[frame, [58, 57, 56], 1] = lm68[frame, [50, 51, 52], 1]
     
     return lm68
 
@@ -373,6 +377,7 @@ class GeneFace2Infer:
     @torch.no_grad()
     def forward_audio2secc(self, batch, inp=None):
         # forward the audio-to-motion
+        print(batch['mouth_amp'])
         ret = {}
         pred = self.audio2secc_model.forward(batch, ret=ret,train=False, temperature=inp['temperature'])
         if pred.shape[-1] == 144:
@@ -482,9 +487,8 @@ class GeneFace2Infer:
             audio, sr = librosa.load(inp['drv_audio_name'][:-4] + '_16k.wav', sr=None)
             silent_segments = detect_silence(audio, sr)
             print(f"Detected {len(silent_segments)} silent segments.")
-            print(silent_segments)
-            # cano_lm3d = inject_mouth_close_to_lm68(cano_lm3d, silent_segments[1:])
-            # print("Injected mouth close to idexp_lm3d by directly editting.")
+            cano_lm3d = inject_mouth_close_to_lm68(cano_lm3d, silent_segments[:])
+            print("Injected mouth close to idexp_lm3d by directly editting.")
         batch['eye_area_percent'] = eye_area_percent
         idexp_lm3d_normalized = ((cano_lm3d - self.face3d_helper.key_mean_shape[index_lm68_from_lm478].unsqueeze(0)) * 10 - idexp_lm3d_mean) / idexp_lm3d_std
         idexp_lm3d_normalized = torch.clamp(idexp_lm3d_normalized, min=lower, max=upper)

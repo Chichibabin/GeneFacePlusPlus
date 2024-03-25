@@ -187,43 +187,43 @@ def inpaint_torso_job(gt_img, segmap):
     
     # TODO：对躯干部份进行横向修复
     # torso part "horizontal" in-painting...
-    L =50+ 1
-    torso_coords = np.stack(np.nonzero(torso_part), axis=-1) # [M, 2]
-    inds = np.lexsort((torso_coords[:, 1], torso_coords[:, 0]))
-    torso_coords = torso_coords[inds]
+    # L =8+ 1
+    # torso_coords = np.stack(np.nonzero(torso_part), axis=-1) # [M, 2]
+    # inds = np.lexsort((torso_coords[:, 1], torso_coords[:, 0]))
+    # torso_coords = torso_coords[inds]
 
-    # get the coordinates of the pixels to the left and right of each torso pixel
-    torso_coords_left = torso_coords.copy() - np.array([0, 1]) # [M, 2]
-    torso_coords_right = torso_coords.copy() + np.array([0, 1]) # [M, 2]
+    # # get the coordinates of the pixels to the left and right of each torso pixel
+    # torso_coords_left = torso_coords.copy() - np.array([0, 1]) # [M, 2]
+    # torso_coords_right = torso_coords.copy() + np.array([0, 1]) # [M, 2]
 
-    # Ensure the coordinates are within the bounds of the array
-    torso_coords_left = np.maximum(torso_coords_left, np.array([0, 0]))
-    torso_coords_left = np.minimum(torso_coords_left, np.array(head_part.shape) - 1)
+    # # Ensure the coordinates are within the bounds of the array
+    # torso_coords_left = np.maximum(torso_coords_left, np.array([0, 0]))
+    # torso_coords_left = np.minimum(torso_coords_left, np.array(head_part.shape) - 1)
 
-    torso_coords_right = np.maximum(torso_coords_right, np.array([0, 0]))
-    torso_coords_right = np.minimum(torso_coords_right, np.array(head_part.shape) - 1)
+    # torso_coords_right = np.maximum(torso_coords_right, np.array([0, 0]))
+    # torso_coords_right = np.minimum(torso_coords_right, np.array(head_part.shape) - 1)
 
-    # find the torso pixels where the pixel to the left or right is a head pixel
-    mask_left = head_part[tuple(torso_coords_left.T)] 
-    mask_right = head_part[tuple(torso_coords_right.T)] 
+    # # find the torso pixels where the pixel to the left or right is a head pixel
+    # mask_left = head_part[tuple(torso_coords_left.T)] 
+    # mask_right = head_part[tuple(torso_coords_right.T)] 
 
-    # perform the in-painting for the identified pixels
-    for mask, torso_coords, direction in [(mask_left, torso_coords, -1), (mask_right, torso_coords, 1)]:
-        if mask.any():
-            torso_coords = torso_coords[mask]
-            torso_colors = gt_img[tuple(torso_coords.T)] # [m, 3]
-            inpaint_torso_coords = torso_coords[None].repeat(L, 0) # [L, m, 2]
-            inpaint_offsets = np.stack([np.zeros(L, dtype=np.int32), direction*np.arange(L)], axis=-1)[:, None] # [L, 1, 2]
-            inpaint_torso_coords += inpaint_offsets
-            inpaint_torso_coords = inpaint_torso_coords.reshape(-1, 2) # [Lm, 2]
-            inpaint_torso_colors = torso_colors[None].repeat(L, 0) # [L, m, 3]
-            darken_scaler = 0.98 ** np.arange(L).reshape(L, 1, 1) # [L, 1, 1]
-            inpaint_torso_colors = (inpaint_torso_colors * darken_scaler).reshape(-1, 3) # [Lm, 3]
-            # Only update the pixels that are not part of the torso
-            mask_update = ~torso_part[tuple(inpaint_torso_coords.T)]
-            img[tuple(inpaint_torso_coords[mask_update].T)] = inpaint_torso_colors[mask_update]
+    # # perform the in-painting for the identified pixels
+    # for mask, torso_coords, direction in [(mask_left, torso_coords, -1), (mask_right, torso_coords, 1)]:
+    #     if mask.any():
+    #         torso_coords = torso_coords[mask]
+    #         torso_colors = gt_img[tuple(torso_coords.T)] # [m, 3]
+    #         inpaint_torso_coords = torso_coords[None].repeat(L, 0) # [L, m, 2]
+    #         inpaint_offsets = np.stack([np.zeros(L, dtype=np.int32), direction*np.arange(L)], axis=-1)[:, None] # [L, 1, 2]
+    #         inpaint_torso_coords += inpaint_offsets
+    #         inpaint_torso_coords = inpaint_torso_coords.reshape(-1, 2) # [Lm, 2]
+    #         inpaint_torso_colors = torso_colors[None].repeat(L, 0) # [L, m, 3]
+    #         darken_scaler = 0.98 ** np.arange(L).reshape(L, 1, 1) # [L, 1, 1]
+    #         inpaint_torso_colors = (inpaint_torso_colors * darken_scaler).reshape(-1, 3) # [Lm, 3]
+    #         # Only update the pixels that are not part of the torso
+    #         mask_update = ~torso_part[tuple(inpaint_torso_coords.T)]
+    #         img[tuple(inpaint_torso_coords[mask_update].T)] = inpaint_torso_colors[mask_update]
         
-    img[tuple(inpaint_torso_coords.T)] = inpaint_torso_colors
+    # img[tuple(inpaint_torso_coords.T)] = inpaint_torso_colors
     # neck part "vertical" in-painting...
     push_down = 4
     L = 48 + push_down + 1

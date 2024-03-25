@@ -16,9 +16,12 @@ def detect_silence(audio, sr, frame_length=2048, hop_length=512, silence_thresho
     """
     # Compute the short-time energy of the audio signal
     energy = librosa.feature.rms(audio, frame_length=frame_length, hop_length=hop_length)[0]
-
     # Normalize the energy
-    energy = (energy - np.min(energy)) / (np.max(energy) - np.min(energy))
+    if np.max(energy) == np.min(energy):
+        # All elements in energy are the same
+        energy = np.zeros_like(energy)  # or np.ones_like(energy)
+    else:
+        energy = (energy - np.min(energy)) / (np.max(energy) - np.min(energy))
 
     # Find frames that are below the silence threshold
     silent_frames = np.where(energy < silence_threshold)[0]
@@ -28,6 +31,8 @@ def detect_silence(audio, sr, frame_length=2048, hop_length=512, silence_thresho
     # Group consecutive frames and convert to time
     silent_segments = []
     for group in np.split(silent_frames, np.where(np.diff(silent_frames) != 1)[0]+1):
+        if group.size == 0:  # Check if group is empty
+            continue
         start_time = librosa.frames_to_time(group[0], sr=sr, hop_length=hop_length)
         end_time = librosa.frames_to_time(group[-1], sr=sr, hop_length=hop_length)
         silent_segments.append((start_time, end_time))
@@ -36,7 +41,7 @@ def detect_silence(audio, sr, frame_length=2048, hop_length=512, silence_thresho
     return silent_segments
 
 # Load an audio file
-audio, sr = librosa.load('/root/autodl-tmp/shijieqi/GeneFacePlusPlus/data/raw/val_wavs/mouth_close.wav', sr=None)
+audio, sr = librosa.load('/root/autodl-tmp/shijieqi/GeneFacePlusPlus/data/raw/val_wavs/silence.wav', sr=None)
 
 # Detect silence
 silent_segments = detect_silence(audio, sr)
