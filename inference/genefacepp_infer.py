@@ -654,7 +654,7 @@ if __name__ == '__main__':
     parser.add_argument("--fast", action='store_true') 
     parser.add_argument("--out_name", default='tmp.mp4') 
     parser.add_argument("--low_memory_usage", action='store_true', help='write img to video upon generated, leads to slower fps, but use less memory')
-    parser.add_argument("--close_mouth_mode", default='silent')# silent | none
+    parser.add_argument("--close_mouth_mode", default='none')# silent | none
 
     args = parser.parse_args()
 

@@ -1,0 +1,67 @@
+import os
+import cv2
+import numpy as np
+from mediapipe.tasks.python import vision
+import subprocess
+from data_gen.utils.mp_feature_extractors.mp_segmenter import MediapipeSegmenter
+
+import cv2
+import numpy as np
+
+def extract_body_and_face_skin(frame, segmenter, frame_idx):
+    segmap = segmenter._cal_seg_map(frame, return_onehot_mask=False)
+    mask = np.zeros_like(segmap, dtype=np.uint8)
+    mask[segmap == 2] = 1  # body_skin
+    mask[segmap == 3] = 1  # face_skin
+    alpha_channel = np.zeros_like(segmap, dtype=np.uint8)
+    alpha_channel[(mask == 1)] = 255  # Set alpha to 255 for body_skin and face_skin pixels
+
+    # Dilate the alpha channel before applying Gaussian blur
+    kernel = np.ones((5,5),np.uint8)
+    alpha_channel = cv2.dilate(alpha_channel, kernel, iterations = 5)
+
+    # Blur the alpha channel to smooth the edges
+    alpha_channel = cv2.GaussianBlur(alpha_channel, (23, 23), 0)
+
+    result_frame = np.dstack((frame, alpha_channel))  # Add the alpha channel to the frame
+    cv2.imwrite(f'tmp_frames/frame_{frame_idx:04d}.png', result_frame)
+
+def process_video(input_video_path, segmenter):
+    cap = cv2.VideoCapture(input_video_path)
+    frame_idx = 0
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        extract_body_and_face_skin(frame, segmenter, frame_idx)
+        frame_idx += 1
+
+    cap.release()
+
+def get_video_duration(video_path):
+    cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {video_path}"
+    duration = subprocess.check_output(cmd, shell=True).decode().strip()
+    return float(duration)
+
+if __name__ == '__main__':
+    seg_model = MediapipeSegmenter()
+    input_video_path = '/root/autodl-tmp/shijieqi/GeneFacePlusPlus/xueli_for_com.mp4'
+    real_person_video_path = '/root/autodl-tmp/shijieqi/GeneFacePlusPlus/data/raw/videos/XueLi.mp4'
+    frame_pattern = 'tmp_frames/frame_%04d.png'
+    output_video_path = 'xueli_com_demo.mp4'
+    
+    # Create a directory to store the frames
+    os.makedirs('tmp_frames', exist_ok=True)
+    process_video(input_video_path, seg_model)
+
+    # Overlay the processed video onto the original video
+    input_video_duration = get_video_duration(input_video_path)
+    # cmd = f"ffmpeg -i {real_person_video_path} -framerate 25 -i {frame_pattern} -i {input_video_path} -filter_complex \"[1:v]format=yuva420p[fg];[0:v][fg]overlay=0:0:shortest=1\" -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a copy -t {input_video_duration} {output_video_path}"    
+    cmd = f"ffmpeg -i {real_person_video_path} -framerate 25 -i {frame_pattern} -i {input_video_path} -filter_complex \"[1:v]format=yuva420p[fg];[0:v][fg]overlay=0:0:shortest=1\" -map 0:v:0 -map 2:a:0 -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a copy -t {input_video_duration} {output_video_path}"
+    os.system(cmd)
+
+    # Cleanup
+    os.system('rm -r tmp_frames')
+

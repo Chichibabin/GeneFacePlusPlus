@@ -42,7 +42,7 @@
 - 步骤4: 激活`geneface`的Python环境，然后执行: 
 ```bash
 export PYTHONPATH=./
-python inference/genefacepp_infer.py --debug --a2m_ckpt=checkpoints/audio2motion_vae --head_ckpt= --torso_ckpt=checkpoints/motion2video_nerf/XueLi_torso --drv_aud=data/raw/val_wavs/mouth_close.wav  --out_name=xueli_demo_close_mouth.mp4
+python inference/genefacepp_infer.py  --close_mouth_mode=none --a2m_ckpt=checkpoints/audio2motion_vae --head_ckpt= --torso_ckpt=checkpoints/motion2video_nerf/XueLi_torso --drv_aud=data/raw/val_wavs/input_audio.wav  --out_name=xueli_for_com.mp4
 ```
   - 或者可以使用我们提供的Gradio WebUI: 
 ```bash

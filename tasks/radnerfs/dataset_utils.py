@@ -202,6 +202,8 @@ class RADNeRFDataset(torch.utils.data.Dataset):
             bg_img = np.ones((self.H, self.W, 3), dtype=np.float32)
         elif hparams['infer_bg_img_fname'] == 'black': # special
             bg_img = np.zeros((self.H, self.W, 3), dtype=np.float32)
+        elif hparams['infer_bg_img_fname'] == 'green': # special
+            bg_img = np.ones((self.H, self.W, 3), dtype=np.float32) * np.array([0, 1, 0], dtype=np.float32)
         else: # load from a specificfile
             bg_img = cv2.imread(hparams['infer_bg_img_fname'], cv2.IMREAD_UNCHANGED) # [H, W, 3]
             if bg_img.shape[0] != self.H or bg_img.shape[1] != self.W:

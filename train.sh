@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置可配置的字段
-DATASET_NAME="XueLi"
+DATASET_NAME="LaoLiang"
 
 # 训练 Head NeRF 模型，并记录执行时间
 start_time_head=$(date +%s)
