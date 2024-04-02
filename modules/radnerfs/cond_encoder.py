@@ -100,6 +100,7 @@ class AudioNet(nn.Module):
         super(AudioNet, self).__init__()
         self.win_size = win_size
         self.dim_aud = dim_aud
+        print("dim_in", dim_in, "dim_aud", dim_aud, "win_size", win_size)
         if win_size == 1:
             strides = [1,1,1,1]
         elif win_size == 2:

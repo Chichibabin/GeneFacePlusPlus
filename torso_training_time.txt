@@ -1,1 +1,1 @@
-Torso NeRF training time: 28175 seconds
+Torso NeRF training time: 18945 seconds

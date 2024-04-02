@@ -449,7 +449,9 @@ class GeneFace2Infer:
             idexp_lm3d_normalized = torch.clamp(idexp_lm3d_normalized, min=lower, max=upper)
 
         else:
+            print("id:", id.shape, "exp:", exp.shape)
             idexp_lm3d = self.face3d_helper.reconstruct_idexp_lm3d(id, exp)
+            print("idexp_lm3d shape:", idexp_lm3d.shape)
             if keypoint_mode == 'lm68':
                 idexp_lm3d = idexp_lm3d[:, index_lm68_from_lm478]
                 idexp_lm3d_mean = idexp_lm3d_mean[:, index_lm68_from_lm478]
@@ -463,19 +465,52 @@ class GeneFace2Infer:
                 lower = lower[index_lm131_from_lm478]
                 upper = upper[index_lm131_from_lm478]
             elif keypoint_mode == 'lm468':
-                idexp_lm3d = idexp_lm3d
+                idexp_lm3d = idexp_lm3d[:, index_lm68_from_lm478]
+                idexp_lm3d_mean = idexp_lm3d_mean[:, index_lm68_from_lm478]
+                idexp_lm3d_std = idexp_lm3d_std[:, index_lm68_from_lm478]
+                lower = lower[index_lm68_from_lm478]
+                upper = upper[index_lm68_from_lm478]
             else:
                 raise NotImplementedError()
+            # 根据keypoint_mode重新调整idexp_lm3d的形状
+            # if keypoint_mode == 'lm68':
+            #     reshape_dim = 68 * 3
+            # elif keypoint_mode == 'lm131':
+            #     reshape_dim = 131 * 3
+            # elif keypoint_mode == 'lm468':
+            #     reshape_dim = 468 * 3
+            # else:
+            #     raise NotImplementedError()
+
+            # idexp_lm3d = idexp_lm3d.reshape([-1, reshape_dim])
+            # idexp_lm3d_ds_lle = idexp_lm3d_ds.reshape([-1, reshape_dim])
+            # feat_fuse, _, _ = compute_LLE_projection(feats=idexp_lm3d[:, :reshape_dim], feat_database=idexp_lm3d_ds_lle[:, :reshape_dim], K=10)
+            # idexp_lm3d[:, :reshape_dim] = LLE_percent * feat_fuse + (1 - LLE_percent) * idexp_lm3d[:, :reshape_dim]
+
+
             idexp_lm3d = idexp_lm3d.reshape([-1, 68*3])
             idexp_lm3d_ds_lle = idexp_lm3d_ds[:, index_lm68_from_lm478].reshape([-1, 68*3])
             feat_fuse, _, _ = compute_LLE_projection(feats=idexp_lm3d[:, :68*3], feat_database=idexp_lm3d_ds_lle[:, :68*3], K=10)
             # feat_fuse = smooth_features_xd(feat_fuse, kernel_size=3)
-            
+
             idexp_lm3d[:, :68*3] = LLE_percent * feat_fuse + (1-LLE_percent) * idexp_lm3d[:,:68*3]
+            
+            # 根据keypoint_mode重新调整idexp_lm3d的形状
+            # if keypoint_mode == 'lm68':
+            #     final_reshape_dim = (68, 3)
+            # elif keypoint_mode == 'lm131':
+            #     final_reshape_dim = (131, 3)
+            # elif keypoint_mode == 'lm468':
+            #     final_reshape_dim = (468, 3)
+            # else:
+            #     raise NotImplementedError()
+
+            # idexp_lm3d = idexp_lm3d.reshape([-1, *final_reshape_dim])
+            
             idexp_lm3d = idexp_lm3d.reshape([-1, 68, 3])
             idexp_lm3d_normalized = (idexp_lm3d - idexp_lm3d_mean) / idexp_lm3d_std
             # idexp_lm3d_normalized = torch.clamp(idexp_lm3d_normalized, min=lower, max=upper)
-
+                
         cano_lm3d = (idexp_lm3d_mean + idexp_lm3d_std * idexp_lm3d_normalized) / 10 + self.face3d_helper.key_mean_shape[index_lm68_from_lm478].unsqueeze(0)
         eye_area_percent = self.opened_eye_area_percent * torch.ones([len(cano_lm3d), 1], dtype=cano_lm3d.dtype, device=cano_lm3d.device)
         
@@ -494,7 +529,7 @@ class GeneFace2Infer:
         idexp_lm3d_normalized = torch.clamp(idexp_lm3d_normalized, min=lower, max=upper)
         batch['cano_lm3d'] = cano_lm3d
 
-        assert keypoint_mode == 'lm68'
+        # assert keypoint_mode == 'lm68'
         idexp_lm3d_normalized_ = idexp_lm3d_normalized[0:1, :].repeat([len(exp),1,1]).clone()
         idexp_lm3d_normalized_[:, 17:27] = idexp_lm3d_normalized[:, 17:27] # brow
         idexp_lm3d_normalized_[:, 36:48] = idexp_lm3d_normalized[:, 36:48] # eye
@@ -507,7 +542,6 @@ class GeneFace2Infer:
         cond_win = idexp_lm3d_normalized.reshape([len(exp), 1, -1])
         cond_wins = [get_audio_features(cond_win, att_mode=2, index=idx) for idx in range(len(cond_win))]
         batch['cond_wins'] = cond_wins
-
         # face boundark mask, for cond mask
         smo_euler = smooth_features_xd(batch['euler'])
         smo_trans = smooth_features_xd(batch['trans'])

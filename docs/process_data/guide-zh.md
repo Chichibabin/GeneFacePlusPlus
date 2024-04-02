@@ -11,7 +11,7 @@ mv data/raw/videos/${VIDEO_ID}_512.mp4 data/raw/videos/${VIDEO_ID}.mp4
 ```
 export CUDA_VISIBLE_DEVICES=0
 export PYTHONPATH=./
-export VIDEO_ID=May
+export VIDEO_ID=ZhengXinXin
 mkdir -p data/processed/videos/${VIDEO_ID}
 ffmpeg -i data/raw/videos/${VIDEO_ID}.mp4 -f wav -ar 16000 data/processed/videos/${VIDEO_ID}/aud.wav 
 python data_gen/utils/process_audio/extract_hubert.py --video_id=${VIDEO_ID}

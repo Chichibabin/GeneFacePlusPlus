@@ -35,7 +35,7 @@ class RADNeRF(NeRFRenderer):
         self.cond_out_dim = hparams['cond_out_dim'] // 2 * 2
         self.cond_win_size = hparams['cond_win_size']
         self.smo_win_size = hparams['smo_win_size']
-
+        print("cond_in_dim", self.cond_in_dim, "cond_out_dim", self.cond_out_dim, "cond_win_size", self.cond_win_size, "smo_win_size", self.smo_win_size)
         self.cond_prenet = AudioNet(self.cond_in_dim, self.cond_out_dim, win_size=self.cond_win_size)
         if hparams.get("add_eye_blink_cond", False):
             self.blink_embedding = nn.Embedding(1,  self.cond_out_dim//2)

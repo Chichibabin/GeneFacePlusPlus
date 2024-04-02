@@ -2,7 +2,6 @@ import csv
 import os
 import cv2
 import numpy as np
-from mediapipe.tasks.python import vision
 import subprocess
 from data_gen.utils.mp_feature_extractors.mp_segmenter import MediapipeSegmenter
 import mediapipe as mp
