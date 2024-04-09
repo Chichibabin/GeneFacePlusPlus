@@ -1,1 +1,1 @@
-Head NeRF training time: 21704 seconds
+Head NeRF training time: 19560 seconds

@@ -709,6 +709,7 @@ if __name__ == '__main__':
             'low_memory_usage': args.low_memory_usage,
             'close_mouth_mode':args.close_mouth_mode,
             }
+    print("temp:", inp['temperature'])
     if args.fast:
         inp['raymarching_end_threshold'] = 0.05
     GeneFace2Infer.example_run(inp)
