@@ -42,7 +42,7 @@
 - 步骤4: 激活`geneface`的Python环境，然后执行: 
 ```bash
 export PYTHONPATH=./
-python inference/genefacepp_infer.py  --close_mouth_mode=none --a2m_ckpt=checkpoints/audio2motion_vae --head_ckpt= --torso_ckpt=checkpoints/motion2video_nerf/LiaoXueMin_torso --drv_aud=data/raw/val_wavs/input_audio.wav  --out_name=LiaoXueMin_test.mp4 --mouth_amp=0.4
+python inference/genefacepp_infer.py  --close_mouth_mode=none --a2m_ckpt=checkpoints/audio2motion_vae --head_ckpt= --torso_ckpt=checkpoints/motion2video_nerf/ZhengXinXin_torso --drv_aud=data/raw/val_wavs/zhengxinxin_aud.wav  --out_name=ZhengXinXin_fake.mp4 --mouth_amp=0.4 --low_memory_usage
 python inference/genefacepp_infer.py  --close_mouth_mode=none --a2m_ckpt=checkpoints/audio2motion_vae --head_ckpt=checkpoints/motion2video_nerf/ZhengXinXin_head --drv_aud=data/raw/val_wavs/input_audio_long.wav  --out_name=ZhengXinXin_head.mp4 --mouth_amp=0.4
 
 ```

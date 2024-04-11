@@ -40,11 +40,11 @@ def extract_face_skin(frame, segmenter, frame_idx, size):
             # Get the coordinates of all face landmarks
             landmark_coords = np.array([(int(lm.x * frame.shape[1]), int(lm.y * frame.shape[0])) for lm in face_landmarks.landmark])
             # Find the highest landmark
-            midle_landmark = landmark_coords[midle_point_index][1]
-            left_eye_point = landmark_coords[468]      
-            righr_eye_point = landmark_coords[473]
+            # midle_landmark = landmark_coords[midle_point_index][1]
+            # left_eye_point = landmark_coords[468]      
+            # righr_eye_point = landmark_coords[473]
             # Set the part above the highest landmark to transparent
-            alpha_channel[:midle_landmark] = 0
+            # alpha_channel[:midle_landmark] = 0
             
             # Find the lowest landmark
             lowest_landmark = np.max(landmark_coords[:, 1])
@@ -65,7 +65,7 @@ def extract_face_skin(frame, segmenter, frame_idx, size):
     
     result_frame = np.dstack((frame, alpha_channel))  # Add the alpha channel to the frame
     # 根据scle调整result_frame的大小
-    # result_frame = cv2.resize(result_frame, (int(size), int(size)))
+    result_frame = cv2.resize(result_frame, (int(size), int(size)))
     cv2.imwrite(f'tmp_frames/frame_{frame_idx:04d}.png', result_frame)
     mp_face_mesh.close()
 
@@ -119,13 +119,12 @@ def get_video_duration(video_path):
 
 if __name__ == '__main__':
     seg_model = MediapipeSegmenter()
-    video_name = "LiaoXueMin"
-    input_video_path = f'./{video_name}_for_com.mp4'
+    video_name = "ZhengXinXin"
+    input_video_path = f'./{video_name}_fake.mp4'
     real_person_video_path = f'./{video_name}_test/{video_name}_raw_25.mp4'
-    real_person_video_path = f'./data/raw/videos/{video_name}.mp4'
     frame_pattern = f'tmp_frames/frame_%04d.png'
     output_video_path = f'./{video_name}_test/{video_name}_no_sound.mp4'
-    final_output_video_path = f'./{video_name}_test/{video_name}_com.mp4'
+    final_output_video_path = f'./{video_name}_test/{video_name}_fake.mp4'
     
     # Create a directory to store the frames
     os.makedirs(f'tmp_frames', exist_ok=True)
@@ -207,8 +206,8 @@ if __name__ == '__main__':
             # 检查坐标是否在 frame 的边界内
             valid_indices = (y_indices >= 0) & (y_indices < frame.shape[0]) & (x_indices >= 0) & (x_indices < frame.shape[1])  
             # 提取有效的像素坐标
-            valid_y_indices = y_indices[valid_indices]
-            valid_x_indices = x_indices[valid_indices]
+            valid_y_indices = y_indices[valid_indices] + offset_y
+            valid_x_indices = x_indices[valid_indices] + offset_x
             
             # 计算 Alpha 值
             alpha = alpha_channel[non_zero_alpha_pixels[0][valid_indices], non_zero_alpha_pixels[1][valid_indices]] / 255.0

@@ -60,7 +60,7 @@ if results.multi_face_landmarks:
 
     # 保存裁切窗口的四个角的坐标到一个 txt 文件中
     with open(f'./data/raw/videos/{video_name}_coordinates.txt', 'w') as f:
-        f.write(f'{x1},{y1},{x2},{y2}\n')
+        f.write(f'{crop_size},{x1},{y1},{x2},{y2}\n')
 
     cmd = f'ffmpeg -i ./data/raw/videos/{video_name}_raw.mp4 -vf "crop={crop_size}:{crop_size}:{x1}:{y1},scale=512:512" ./data/raw/videos/{video_name}.mp4'
     os.system(cmd)
